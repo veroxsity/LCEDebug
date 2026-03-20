@@ -4,6 +4,7 @@
 #include "stdafx.h"
 
 #include <assert.h>
+#include <cstdio>
 #include <iostream>
 #include <ShellScalingApi.h>
 #include <shellapi.h>
@@ -249,6 +250,29 @@ static Win64LaunchOptions ParseLaunchOptions()
 
 	LocalFree(argv);
 	return options;
+}
+
+static void InitialiseDebugConsole()
+{
+#ifndef _FINAL_BUILD
+	if (AttachConsole(ATTACH_PARENT_PROCESS) == FALSE)
+	{
+		AllocConsole();
+	}
+
+	SetConsoleTitleA("LCEDebug Log Console");
+	SetConsoleOutputCP(CP_UTF8);
+
+	FILE* stream = nullptr;
+	freopen_s(&stream, "CONOUT$", "w", stdout);
+	freopen_s(&stream, "CONOUT$", "w", stderr);
+	freopen_s(&stream, "CONIN$", "r", stdin);
+
+	setvbuf(stdout, nullptr, _IONBF, 0);
+	setvbuf(stderr, nullptr, _IONBF, 0);
+
+	printf("LCEDebug console attached.\n");
+#endif
 }
 
 void DefineActions(void)
@@ -1302,12 +1326,21 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
+	InitialiseDebugConsole();
+
 	// 4J-Win64: set CWD to exe dir so asset paths resolve correctly
 	{
 		char szExeDir[MAX_PATH] = {};
 		GetModuleFileNameA(nullptr, szExeDir, MAX_PATH);
 		char *pSlash = strrchr(szExeDir, '\\');
-		if (pSlash) { *(pSlash + 1) = '\0'; SetCurrentDirectoryA(szExeDir); }
+		if (pSlash)
+		{
+			*(pSlash + 1) = '\0';
+			SetCurrentDirectoryA(szExeDir);
+#ifndef _FINAL_BUILD
+			printf("Executable directory: %s\n", szExeDir);
+#endif
+		}
 	}
 
 	// Declare DPI awareness so GetSystemMetrics returns physical pixels

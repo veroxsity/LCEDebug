@@ -1,6 +1,25 @@
 #include "stdafx.h"
+#if defined(_WINDOWS64)
+#include <cstdio>
+#endif
 #if defined(_WINDOWS64) && defined(MINECRAFT_SERVER_BUILD)
 #include "..\..\Minecraft.Server\ServerLogManager.h"
+#endif
+
+#if defined(_WINDOWS64) && !defined(MINECRAFT_SERVER_BUILD)
+static void WriteDebugConsoleLine(const CHAR* str)
+{
+    if (str == nullptr || str[0] == '\0')
+        return;
+
+    DWORD mode = 0;
+    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hStdout != INVALID_HANDLE_VALUE && hStdout != nullptr && GetConsoleMode(hStdout, &mode))
+    {
+        fputs(str, stdout);
+        fflush(stdout);
+    }
+}
 #endif
 
 //--------------------------------------------------------------------------------------
@@ -27,6 +46,9 @@ static VOID DebugSpewV( const CHAR* strFormat, va_list pArgList )
     // rather than triggering an error.
     _vsnprintf_s( str, _TRUNCATE, strFormat, pArgList );
     OutputDebugStringA( str );
+#if defined(_WINDOWS64) && !defined(MINECRAFT_SERVER_BUILD)
+    WriteDebugConsoleLine(str);
+#endif
 #endif
 }
 #endif

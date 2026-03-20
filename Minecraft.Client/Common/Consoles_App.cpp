@@ -1,5 +1,8 @@
 ﻿#include "stdafx.h"
 #include "..\..\Minecraft.World\net.minecraft.world.entity.item.h"
+#if defined(_WINDOWS64)
+#include <cstdio>
+#endif
 #include "..\..\Minecraft.World\net.minecraft.world.entity.player.h"
 #include "..\..\Minecraft.World\net.minecraft.world.level.tile.entity.h"
 #include "..\..\Minecraft.World\net.minecraft.world.phys.h"
@@ -70,6 +73,22 @@
 #endif
 
 #include "..\Common\Leaderboards\LeaderboardManager.h"
+
+#if defined(_WINDOWS64) && !defined(MINECRAFT_SERVER_BUILD)
+static void WriteDebugConsoleLine(const char* str)
+{
+	if (str == nullptr || str[0] == '\0')
+		return;
+
+	DWORD mode = 0;
+	HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hStdout != INVALID_HANDLE_VALUE && hStdout != nullptr && GetConsoleMode(hStdout, &mode))
+	{
+		fputs(str, stdout);
+		fflush(stdout);
+	}
+}
+#endif
 
 //CMinecraftApp app;
 unsigned int CMinecraftApp::m_uiLastSignInData = 0;
@@ -258,6 +277,9 @@ void CMinecraftApp::DebugPrintf(const char *szFormat, ...)
     vsnprintf(buf, sizeof(buf), szFormat, ap);
     va_end(ap);
     OutputDebugStringA(buf);
+#if defined(_WINDOWS64) && !defined(MINECRAFT_SERVER_BUILD)
+	WriteDebugConsoleLine(buf);
+#endif
 #endif
 
 }
@@ -315,6 +337,9 @@ void CMinecraftApp::DebugPrintf(int user, const char *szFormat, ...)
     }
 #else
     OutputDebugStringA(buf);
+#if defined(_WINDOWS64) && !defined(MINECRAFT_SERVER_BUILD)
+	WriteDebugConsoleLine(buf);
+#endif
 #endif
 #ifndef _XBOX
     if(user == USER_UI)
