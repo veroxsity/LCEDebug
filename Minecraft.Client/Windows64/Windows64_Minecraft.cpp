@@ -5,9 +5,15 @@
 
 #include <assert.h>
 #include <cstdio>
+#include <cstring>
+#include <fcntl.h>
 #include <iostream>
+#include <io.h>
 #include <ShellScalingApi.h>
 #include <shellapi.h>
+#include <share.h>
+#include <string>
+#include <sys/stat.h>
 #include "GameConfig\Minecraft.spa.h"
 #include "..\MinecraftServer.h"
 #include "..\LocalPlayer.h"
@@ -47,8 +53,10 @@
 #include "Common/PostProcesser.h"
 #include "..\GameRenderer.h"
 #include "Network\WinsockNetLayer.h"
+#include "DebugLogSink.h"
 #include "Windows64_Xuid.h"
 #include "Common/UI/UI.h"
+#include "..\Common\zlib\zlib.h"
 
 // Forward-declare the internal Renderer class and its global instance from 4J_Render_PC_d.lib.
 // C4JRender (RenderManager) is a stateless wrapper — all D3D state lives in InternalRenderManager.
@@ -118,6 +126,170 @@ wchar_t g_Win64UsernameW[17] = { 0 };
 // Fullscreen toggle state
 static bool g_isFullscreen = false;
 static WINDOWPLACEMENT g_wpPrev = { sizeof(g_wpPrev) };
+
+#ifndef _FINAL_BUILD
+static CRITICAL_SECTION g_debugLogLock;
+static bool g_debugLogLockInitialised = false;
+static FILE* g_debugLogFile = nullptr;
+
+static std::wstring GetExecutableDirectory()
+{
+	wchar_t modulePath[MAX_PATH] = { 0 };
+	DWORD length = GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
+	if (length == 0 || length >= MAX_PATH)
+		return L".";
+
+	std::wstring path(modulePath, length);
+	size_t slash = path.find_last_of(L"\\/");
+	return slash == std::wstring::npos ? L"." : path.substr(0, slash);
+}
+
+static std::wstring BuildArchivePath(const std::wstring& logsDirectory)
+{
+	SYSTEMTIME localTime = {};
+	GetLocalTime(&localTime);
+
+	wchar_t fileName[64] = { 0 };
+	swprintf_s(
+		fileName,
+		L"%04u-%02u-%02u_%02u-%02u-%02u.log.gz",
+		localTime.wYear,
+		localTime.wMonth,
+		localTime.wDay,
+		localTime.wHour,
+		localTime.wMinute,
+		localTime.wSecond);
+
+	return logsDirectory + L"\\" + fileName;
+}
+
+static bool CompressFileToGzip(const std::wstring& sourcePath, const std::wstring& gzipPath)
+{
+	FILE* source = _wfsopen(sourcePath.c_str(), L"rb", _SH_DENYNO);
+	if (source == nullptr)
+		return false;
+
+	int gzipFd = _wopen(gzipPath.c_str(), _O_BINARY | _O_CREAT | _O_TRUNC | _O_WRONLY, _S_IREAD | _S_IWRITE);
+	if (gzipFd < 0)
+	{
+		fclose(source);
+		return false;
+	}
+
+	gzFile gzip = gzdopen(gzipFd, "wb9");
+	if (gzip == nullptr)
+	{
+		_close(gzipFd);
+		fclose(source);
+		return false;
+	}
+
+	bool success = true;
+	char buffer[16384];
+	for (;;)
+	{
+		size_t bytesRead = fread(buffer, 1, sizeof(buffer), source);
+		if (bytesRead > 0)
+		{
+			int written = gzwrite(gzip, buffer, static_cast<unsigned int>(bytesRead));
+			if (written != static_cast<int>(bytesRead))
+			{
+				success = false;
+				break;
+			}
+		}
+
+		if (bytesRead < sizeof(buffer))
+		{
+			if (ferror(source) != 0)
+				success = false;
+			break;
+		}
+	}
+
+	fclose(source);
+	if (gzclose(gzip) != Z_OK)
+		success = false;
+
+	if (!success)
+		DeleteFileW(gzipPath.c_str());
+
+	return success;
+}
+
+static void RotateLatestLog(const std::wstring& logsDirectory, const std::wstring& latestLogPath)
+{
+	DWORD existingAttributes = GetFileAttributesW(latestLogPath.c_str());
+	if (existingAttributes == INVALID_FILE_ATTRIBUTES || (existingAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+		return;
+
+	std::wstring archivePath = BuildArchivePath(logsDirectory);
+	for (int attempt = 1; attempt < 100; ++attempt)
+	{
+		if (GetFileAttributesW(archivePath.c_str()) == INVALID_FILE_ATTRIBUTES)
+			break;
+
+		size_t extensionIndex = archivePath.rfind(L".log.gz");
+		if (extensionIndex == std::wstring::npos)
+			break;
+
+		wchar_t suffix[16] = { 0 };
+		swprintf_s(suffix, L"_%02d", attempt);
+		archivePath = archivePath.substr(0, extensionIndex) + suffix + L".log.gz";
+	}
+
+	if (CompressFileToGzip(latestLogPath, archivePath))
+	{
+		DeleteFileW(latestLogPath.c_str());
+		return;
+	}
+
+	size_t extensionIndex = archivePath.rfind(L".log.gz");
+	if (extensionIndex != std::wstring::npos)
+	{
+		std::wstring fallbackPath = archivePath.substr(0, extensionIndex) + L".log";
+		MoveFileExW(latestLogPath.c_str(), fallbackPath.c_str(), MOVEFILE_REPLACE_EXISTING);
+	}
+}
+
+void Win64InitialiseDebugLogSink()
+{
+	if (g_debugLogFile != nullptr)
+		return;
+
+	if (!g_debugLogLockInitialised)
+	{
+		InitializeCriticalSection(&g_debugLogLock);
+		g_debugLogLockInitialised = true;
+	}
+
+	std::wstring executableDirectory = GetExecutableDirectory();
+	std::wstring logsDirectory = executableDirectory + L"\\logs";
+	CreateDirectoryW(logsDirectory.c_str(), nullptr);
+
+	std::wstring latestLogPath = logsDirectory + L"\\latest.log";
+	RotateLatestLog(logsDirectory, latestLogPath);
+
+	g_debugLogFile = _wfsopen(latestLogPath.c_str(), L"wb", _SH_DENYNO);
+	if (g_debugLogFile != nullptr)
+		setvbuf(g_debugLogFile, nullptr, _IONBF, 0);
+}
+
+void Win64WriteDebugLogLine(const char* str)
+{
+	if (g_debugLogFile == nullptr || str == nullptr || str[0] == '\0')
+		return;
+
+	if (g_debugLogLockInitialised)
+		EnterCriticalSection(&g_debugLogLock);
+
+	fwrite(str, 1, strlen(str), g_debugLogFile);
+	fflush(g_debugLogFile);
+
+	if (g_debugLogLockInitialised)
+		LeaveCriticalSection(&g_debugLogLock);
+}
+#endif
 
 struct Win64LaunchOptions
 {
@@ -255,6 +427,8 @@ static Win64LaunchOptions ParseLaunchOptions()
 static void InitialiseDebugConsole()
 {
 #ifndef _FINAL_BUILD
+	Win64InitialiseDebugLogSink();
+
 	if (AttachConsole(ATTACH_PARENT_PROCESS) == FALSE)
 	{
 		AllocConsole();
@@ -272,6 +446,7 @@ static void InitialiseDebugConsole()
 	setvbuf(stderr, nullptr, _IONBF, 0);
 
 	printf("LCEDebug console attached.\n");
+	Win64WriteDebugLogLine("LCEDebug console attached.\n");
 #endif
 }
 

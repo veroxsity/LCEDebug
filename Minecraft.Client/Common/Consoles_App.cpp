@@ -2,6 +2,7 @@
 #include "..\..\Minecraft.World\net.minecraft.world.entity.item.h"
 #if defined(_WINDOWS64)
 #include <cstdio>
+#include "..\Windows64\DebugLogSink.h"
 #endif
 #include "..\..\Minecraft.World\net.minecraft.world.entity.player.h"
 #include "..\..\Minecraft.World\net.minecraft.world.level.tile.entity.h"
@@ -87,6 +88,8 @@ static void WriteDebugConsoleLine(const char* str)
 		fputs(str, stdout);
 		fflush(stdout);
 	}
+
+	Win64WriteDebugLogLine(str);
 }
 #endif
 

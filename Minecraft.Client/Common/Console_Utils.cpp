@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #if defined(_WINDOWS64)
 #include <cstdio>
+#include "..\Windows64\DebugLogSink.h"
 #endif
 #if defined(_WINDOWS64) && defined(MINECRAFT_SERVER_BUILD)
 #include "..\..\Minecraft.Server\ServerLogManager.h"
@@ -19,6 +20,8 @@ static void WriteDebugConsoleLine(const CHAR* str)
         fputs(str, stdout);
         fflush(stdout);
     }
+
+    Win64WriteDebugLogLine(str);
 }
 #endif
 
