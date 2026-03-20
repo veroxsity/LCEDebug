@@ -27,7 +27,8 @@ $copies = @(
     @{ Source = "Common\Tutorial"; Dest = "Common\Tutorial" },
     @{ Source = "Windows64\GameHDD"; Dest = "Windows64\GameHDD" },
     @{ Source = "Windows64\Sound";  Dest = "Windows64\Sound" },
-    @{ Source = "Windows64Media";  Dest = "Windows64Media" }
+    @{ Source = "Windows64Media";  Dest = "Windows64Media" },
+    @{ Source = "Windows64\Iggy\lib\redist64\iggy_w64.dll"; Dest = "iggy_w64.dll" }
 )
 
 foreach ($copy in $copies) {

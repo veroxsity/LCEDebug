@@ -36,6 +36,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
           Copy-Item .\x64\Debug\* $artifactRoot -Recurse -Force
 
+          $iggyRedist = Join-Path $pwd "Minecraft.Client\\Windows64\\Iggy\\lib\\redist64\\iggy_w64.dll"
+          if (-not (Test-Path (Join-Path $artifactRoot "iggy_w64.dll")) -and (Test-Path $iggyRedist)) {
+            Copy-Item $iggyRedist (Join-Path $artifactRoot "iggy_w64.dll") -Force
+          }
+
           $zipPath = Join-Path $pwd "artifacts\\LCEDebug-nightly-win-x64.zip"
           if (Test-Path $zipPath) {
             Remove-Item $zipPath -Force
