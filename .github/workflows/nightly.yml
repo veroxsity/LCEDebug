@@ -5,6 +5,18 @@ on:
   push:
     branches:
       - master
+    paths:
+      - '.github/workflows/nightly.yml'
+      - 'Minecraft.Client/**'
+      - 'Minecraft.World/**'
+      - 'Minecraft.Server/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - 'MinecraftConsoles.sln'
+      - '**/*.vcxproj'
+      - '**/*.vcxproj.filters'
+      - '**/*.props'
+      - '**/*.targets'
 
 permissions:
   contents: write

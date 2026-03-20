@@ -56,7 +56,6 @@
 #include "DebugLogSink.h"
 #include "Windows64_Xuid.h"
 #include "Common/UI/UI.h"
-#include "..\Common\zlib\zlib.h"
 
 // Forward-declare the internal Renderer class and its global instance from 4J_Render_PC_d.lib.
 // C4JRender (RenderManager) is a stateless wrapper — all D3D state lives in InternalRenderManager.
@@ -67,6 +66,17 @@ extern Renderer InternalRenderManager;
 
 #ifdef _MSC_VER
 #pragma comment(lib, "legacy_stdio_definitions.lib")
+#endif
+
+#ifndef _FINAL_BUILD
+extern "C" {
+	struct gzFile_s;
+	typedef struct gzFile_s* gzFile;
+	gzFile gzdopen(int fd, const char* mode);
+	int gzwrite(gzFile file, const void* buf, unsigned len);
+	int gzclose(gzFile file);
+}
+static const int Z_OK = 0;
 #endif
 
 HINSTANCE hMyInst;
