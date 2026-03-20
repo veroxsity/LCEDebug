@@ -1,0 +1,58 @@
+name: nightly
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  build-nightly:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Debug x64 client
+        shell: powershell
+        run: |
+          msbuild .\MinecraftConsoles.sln /m /p:Configuration=Debug /p:Platform=x64
+
+      - name: Package nightly build
+        shell: powershell
+        run: |
+          $artifactRoot = Join-Path $pwd "artifacts\\LCEDebug-nightly-win-x64"
+          if (Test-Path $artifactRoot) {
+            Remove-Item $artifactRoot -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+          Copy-Item .\x64\Debug\* $artifactRoot -Recurse -Force
+
+          $zipPath = Join-Path $pwd "artifacts\\LCEDebug-nightly-win-x64.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+
+          Compress-Archive -Path "$artifactRoot\\*" -DestinationPath $zipPath
+
+      - name: Publish nightly release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: nightly
+          name: LCEDebug Nightly
+          commit: ${{ github.sha }}
+          prerelease: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          replacesArtifacts: true
+          body: |
+            Automated nightly build from `${{ github.sha }}`.
+          artifacts: artifacts/LCEDebug-nightly-win-x64.zip
