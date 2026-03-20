@@ -20,6 +20,13 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Generate build version header
+        shell: powershell
+        run: |
+          Push-Location .\Minecraft.Client
+          powershell -ExecutionPolicy Bypass -File .\prebuild.ps1
+          Pop-Location
+
       - name: Build Debug x64 client
         shell: powershell
         run: |

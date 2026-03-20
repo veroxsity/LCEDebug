@@ -1,15 +1,23 @@
-$sha = (git rev-parse --short=7 HEAD)
+$sha = (git rev-parse --short=7 HEAD).Trim()
 
 if ($env:GITHUB_REPOSITORY) {
-    $ref = "$env:GITHUB_REPOSITORY/$(git symbolic-ref --short HEAD)"
+    $branch = if ($env:GITHUB_REF_NAME) {
+        $env:GITHUB_REF_NAME
+    } else {
+        (git rev-parse --abbrev-ref HEAD).Trim()
+    }
+
+    $ref = "$env:GITHUB_REPOSITORY/$branch"
 } else {
+    $branch = (git rev-parse --abbrev-ref HEAD).Trim()
     $remoteUrl = (git remote get-url origin)
+
     # handle github urls only, can't predict other origins behavior
-    if ($remoteUrl -match '(?:github\.com[:/])([^/:]+/[^/]+?)(?:\.git)?$') { 
-        $ref = "$($matches[1])/$(git symbolic-ref --short HEAD)"
-    }else{
-        # fallback to just symbolic ref in case remote isnt what we expect
-        $ref = "UNKNOWN/$(git symbolic-ref --short HEAD)"
+    if ($remoteUrl -match '(?:github\.com[:/])([^/:]+/[^/]+?)(?:\.git)?$') {
+        $ref = "$($matches[1])/$branch"
+    } else {
+        # fallback to just the local branch in case remote isn't what we expect
+        $ref = "UNKNOWN/$branch"
     }
 }
 
@@ -35,4 +43,4 @@ if (git status --porcelain) {
 #define VER_FILEVERSION_STR_W VER_PRODUCTVERSION_STR_W
 #define VER_BRANCHVERSION_STR_W L"$ref"
 #define VER_NETWORK VER_PRODUCTBUILD
-"@ | Set-Content "Common/BuildVer.h"
+"@ | Set-Content "Common/BuildVer.h" -Encoding ASCII
