@@ -17,18 +17,34 @@ Nightly builds are published from the `master` branch through GitHub Actions.
 - Latest nightly release: https://github.com/veroxsity/LCEDebug/releases/tag/nightly
 - Artifact: `LCEDebug-nightly-win-x64.zip`
 
-The nightly package is built from the Visual Studio solution using the `Debug|x64` configuration and uploads the runnable output directory as a zip.
+The nightly package is built from the Visual Studio solution using the `Debug|Windows64` configuration and uploads the runnable output directory as a zip.
+
+Automatic nightly builds only run when client code, world code, build files, or the workflow itself changes. Documentation-only pushes do not create a new nightly by themselves.
 
 ## Local Build
 
-Open `MinecraftConsoles.sln` in Visual Studio 2022 and build `Debug|x64`, or follow the detailed steps in [COMPILE.md](COMPILE.md).
+Open `MinecraftConsoles.sln` in Visual Studio 2022 and build `Debug|Windows64`, or follow the detailed steps in [COMPILE.md](COMPILE.md).
 
 ## Runtime Notes
+
+LCEDebug is intended for debugging outside the Visual Studio debugger.
+
+- The Windows build opens its own debug console when launched.
+- Logs are also written next to the executable under `logs/latest.log`.
+- On the next run, the previous `latest.log` is rotated into a timestamped archive.
 
 If the debug client does not launch:
 
 - Install the Visual C++ Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe
 - Install Windows Graphics Tools if they are missing
+
+## Using With The Launcher
+
+LCEDebug is also supported as a managed client stream in LCELauncher.
+
+- Install the `Debug` stream in the launcher
+- Select the `Debug` launch stream
+- Launch normally while keeping the debug console and on-disk logs available
 
 ## Related Repositories
 
