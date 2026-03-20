@@ -23,7 +23,7 @@ jobs:
       - name: Build Debug x64 client
         shell: powershell
         run: |
-          msbuild .\MinecraftConsoles.sln /m /p:Configuration=Debug /p:Platform=x64
+          msbuild .\MinecraftConsoles.sln /m /p:Configuration=Debug /p:Platform=Windows64
 
       - name: Package nightly build
         shell: powershell
