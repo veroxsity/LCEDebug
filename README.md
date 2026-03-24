@@ -64,4 +64,5 @@ LCEDebug is also supported as a managed client stream in LCELauncher.
 - Client fork: https://github.com/veroxsity/LCEClient
 - Launcher: https://github.com/veroxsity/LCELauncher
 - Server: https://github.com/veroxsity/LCEServer
+- Save converter: https://github.com/veroxsity/LCE-Save-Converter
 - Upstream base: https://github.com/smartcmd/MinecraftConsoles
